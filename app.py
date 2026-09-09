@@ -25,9 +25,13 @@ def _load_local_secrets() -> None:
     On Vercel the key comes from the environment instead, so this is a no-op
     there — nothing gitignored ever ships.
     """
-    path = pathlib.Path(__file__).resolve().parent.parent / "secrets.env"
-    if not path.exists():
+    here = pathlib.Path(__file__).resolve().parent
+    for path in (here / "secrets.env", here.parent / "secrets.env"):
+        if path.exists():
+            break
+    else:
         return
+
     for line in path.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
