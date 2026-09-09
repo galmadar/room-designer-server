@@ -12,9 +12,33 @@ import binascii
 import os
 import tempfile
 
+import pathlib
+
 import fal_client
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+
+def _load_local_secrets() -> None:
+    """Pick up ../secrets.env when running on a Mac.
+
+    On Vercel the key comes from the environment instead, so this is a no-op
+    there — nothing gitignored ever ships.
+    """
+    path = pathlib.Path(__file__).resolve().parent.parent / "secrets.env"
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        value = value.strip().strip('"').strip("'")
+        if value:
+            os.environ.setdefault(name.strip(), value)
+
+
+_load_local_secrets()
 
 app = FastAPI(title="Room Designer")
 
