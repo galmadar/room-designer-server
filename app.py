@@ -197,7 +197,7 @@ class ImportResponse(BaseModel):
 class ComposeObject(BaseModel):
     name: str = Field(min_length=1)
     image_url: str
-    marker: Marker
+    marker: Marker | None = None     # paintings, curtains, pendants: nothing to box on the floor
 
 
 class ComposeRequest(BaseModel):
@@ -594,6 +594,11 @@ def _require_fal_url(url: str, field: str) -> None:
         raise HTTPException(status_code=400, detail=f"{field} must be a URL returned by /upload or /objects/import")
 
 
+def _boxed_first(objects: list[ComposeObject]) -> list[ComposeObject]:
+    # Both the image order and the instruction's numbering come from here, so they can't drift apart.
+    return sorted(objects, key=lambda item: item.marker is None)
+
+
 def _compose_instruction(prompt: str, has_photo: bool, objects: list[ComposeObject]) -> str:
     scan = 2 if has_photo else 1
     if has_photo:
@@ -614,10 +619,18 @@ def _compose_instruction(prompt: str, has_photo: bool, objects: list[ComposeObje
         ]
 
     if objects:
-        lines.append(f"Coloured boxes in image {scan} mark where products go, each drawn at the size that product should be:")
-        for number, item in enumerate(objects, start=scan + 1):
+        if any(item.marker is not None for item in objects):
+            lines.append(f"Coloured boxes in image {scan} mark where products go, each drawn at the size that product should be:")
+        for number, item in enumerate(_boxed_first(objects), start=scan + 1):
             name = " ".join(item.name.split())[:120]
-            lines.append(f"- The {item.marker} box marks where the {name} goes. Image {number} shows that exact product.")
+            if item.marker is not None:
+                lines.append(f"- The {item.marker} box marks where the {name} goes. Image {number} shows that exact product.")
+            else:
+                lines.append(
+                    f"Image {number} shows the {name}, a product the user wants in the room. It has no box: place "
+                    "it where the request says, or where it naturally belongs, such as a painting on a wall or a "
+                    "pendant light from the ceiling."
+                )
         lines += [
             "The product images show the exact items the user chose. Reproduce each one faithfully: the "
             "same shape, proportions, colour, material and details. Do not substitute a similar item or "
@@ -645,17 +658,18 @@ def compose(request: ComposeRequest) -> ComposeResponse:
         image_urls.append(request.room_photo_url)
     _require_fal_url(request.scan_url, "scan_url")
     image_urls.append(request.scan_url)
-    for item in request.objects:
+    objects = _boxed_first(request.objects)
+    for item in objects:
         _require_fal_url(item.image_url, "objects[].image_url")
         image_urls.append(item.image_url)
 
-    markers = [item.marker for item in request.objects]
+    markers = [item.marker for item in objects if item.marker is not None]
     if len(set(markers)) != len(markers):
         raise HTTPException(status_code=400, detail="each object needs its own marker colour")
 
     endpoint, options, ratio_field, ratios = COMPOSE_MODELS[request.model]
     arguments = {
-        "prompt": _compose_instruction(request.prompt, request.room_photo_url is not None, request.objects),
+        "prompt": _compose_instruction(request.prompt, request.room_photo_url is not None, objects),
         "image_urls": image_urls,
         "num_images": 1,
         "output_format": "jpeg",
