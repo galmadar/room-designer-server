@@ -41,6 +41,10 @@ block hotlinking, and fal's URLs don't rotate. `/compose` sends the room photo
 (if any), the scan render and the product pictures, in that order, to
 `fal-ai/nano-banana-2/edit` or `openai/gpt-image-2/edit`.
 
+An object's `marker` is optional. Paintings, mirrors, curtains and pendant
+lights can't be boxed on the floor plan, so they go after the boxed objects and
+the instruction tells the model to place them where the request says.
+
 **`/compose` only forwards URLs on `v3b.fal.media`**, the one host `/upload` and
 `/objects/import` were seen returning. Otherwise it would make fal fetch any URL
 on our key. Uploads are pinned to fal's v3 repository with no fallback, so a
