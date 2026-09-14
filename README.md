@@ -3,7 +3,8 @@
 One job: hold the fal API key so the phone doesn't have to. `/generate` passes a
 conditioning render through to the image model; `/suggest` turns the facts of a
 scanned room into a handful of one-line redesign briefs, so the app can offer
-chips instead of an empty text box.
+chips instead of an empty text box; `/interpret` turns a sentence the user says
+about their room into corrections the app can apply.
 
 It stores nothing. The phone keeps every scan, plan and image; backups are meant
 to go from the device straight to object storage, never through here — Vercel
@@ -19,6 +20,16 @@ export FAL_KEY=...
 ```
 
 Then point the app at `http://<your-mac>:8000` in its Settings.
+
+## Tests
+
+```bash
+./.venv/bin/pip install -r requirements-dev.txt
+./.venv/bin/python -m pytest
+```
+
+`test_interpret.py` stubs the model call out, so the suite needs no key, no
+network and no money.
 
 ## Deploying
 
@@ -78,6 +89,39 @@ furniture" didn't change that, so it was dropped; the render probably needs to
 show furniture height more clearly than the test one did.
 
 One sample per variant, so treat these as leads, not proof.
+
+## Correcting a scan in words
+
+RoomPlan mislabels things — it read a wardrobe as a refrigerator and gave it a
+box half its real width — and the app infers the room type from the object
+categories, so one wrong object turns a guest room into a kitchen and quietly
+poisons every suggestion after it. `/interpret` takes one sentence the user
+typed or spoke, plus the room as the scan currently believes it, and returns
+`roomKind` (free text, `null` when the sentence names no kind), `objectEdits`
+for what the sentence settles, `questions` for what it doesn't, and `unchanged`
+sentences for whatever couldn't be acted on.
+
+**A vague size is a question, never an edit.** "Wider", "much bigger" and "too
+tall" come back as a question with two options measured off the scan — twice
+the current value, half the room's width, floor to ceiling — because the
+object's box is what the image model is conditioned on, and a guessed number
+produces a confidently wrong picture. Only a number you could measure with
+("1.2 metres wide", "about a metre and a half") becomes an edit. When the
+geometry can't yield two honest options the question is dropped and the user is
+told, because a single option is the same guess wearing a hat.
+
+The model is asked for JSON and then disbelieved: ids it invents are dropped,
+sizes outside 0-30 m are dropped, an edit that settles nothing is dropped, a
+number the sentence actually gave beats a question about the same field, and a
+reply that doesn't parse comes back as 200 with a line in `unchanged` rather
+than a 500. An empty sentence never reaches the model at all.
+
+Text the user may be shown — `ask`, `unchanged` — comes back in the language
+they wrote in; `roomKind` and `category` come back in English, because that is
+what `/suggest` and `/compose` read. **Option labels are always English**: they
+are built here from the geometry, not by the model, so a Hebrew question
+currently carries English labels. Worth fixing when the app grows a second
+language.
 
 ## Function duration
 

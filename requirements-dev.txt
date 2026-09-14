@@ -1,0 +1,3 @@
+# Kept out of requirements.txt so Vercel doesn't install a test runner.
+-r requirements.txt
+pytest>=8
