@@ -28,7 +28,8 @@ import pathlib
 import fal_client
 import httpx
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 
 def _load_local_secrets() -> None:
@@ -128,6 +129,26 @@ BOT_WALL_MARKERS = ("captcha", "robot check", "are you a robot", "access denied"
 LLM_URL = "https://fal.run/openrouter/router/openai/v1/chat/completions"
 LLM_MODEL = "google/gemini-2.5-flash-lite"
 
+# /interpret. A scan is free to be absurd, so nothing here is a validation
+# bound on the request — only on what we are willing to hand back.
+MAX_METRES = 30.0
+# A height has no room dimension to be a fraction of: the scan measures the
+# floor but not the ceiling. Cap it at a tall flat instead.
+CEILING_CAP = 3.0
+SIZE_FIELDS = ("widthMetres", "depthMetres", "heightMetres")
+OPTIONS_OFFERED = 2
+MAX_UNCHANGED = 6
+
+# Shown to the user verbatim.
+DEFAULT_ASK = {
+    "widthMetres": "How wide should it be?",
+    "depthMetres": "How deep should it be?",
+    "heightMetres": "How tall should it be?",
+}
+NOT_UNDERSTOOD = "I could not make sense of that just now. Try saying it another way."
+NO_SUCH_THING = "I could not tell which thing you meant."
+NO_NEW_SIZE = "I could not work out a new size for that."
+
 # Shown when the model gives us something we can't parse. Generic on purpose —
 # an empty suggestion strip is worse than one that ignores the room.
 FALLBACK_SUGGESTIONS = [
@@ -173,6 +194,61 @@ class SuggestRequest(BaseModel):
 
 class SuggestResponse(BaseModel):
     suggestions: list[str]
+
+
+class _Camel(BaseModel):
+    """The app speaks camelCase; /interpret is the only place that leaks in."""
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+class ScannedObject(_Camel):
+    # Sizes are deliberately unbounded: a bad scan shouldn't cost the user the
+    # correction they opened the box to make.
+    id: str = Field(min_length=1, max_length=80)
+    category: str | None = Field(default=None, max_length=80)
+    width_metres: float | None = None
+    depth_metres: float | None = None
+    height_metres: float | None = None
+
+
+class ScannedRoom(_Camel):
+    kind: str | None = Field(default=None, max_length=80)
+    width_metres: float | None = None
+    length_metres: float | None = None
+    objects: list[ScannedObject] = Field(default_factory=list, max_length=60)
+
+
+class InterpretRequest(_Camel):
+    sentence: str = Field(default="", max_length=1000)
+    room: ScannedRoom = Field(default_factory=ScannedRoom)
+
+
+class ObjectEdit(_Camel):
+    id: str
+    category: str | None = None
+    width_metres: float | None = None
+    depth_metres: float | None = None
+    height_metres: float | None = None
+
+
+class SizeOption(_Camel):
+    label: str
+    value: float
+
+
+class SizeQuestion(_Camel):
+    id: str
+    field: str
+    ask: str
+    options: list[SizeOption]
+
+
+class InterpretResponse(_Camel):
+    room_kind: str | None = None
+    object_edits: list[ObjectEdit] = Field(default_factory=list)
+    questions: list[SizeQuestion] = Field(default_factory=list)
+    unchanged: list[str] = Field(default_factory=list)
 
 
 class UploadRequest(BaseModel):
@@ -689,6 +765,31 @@ def compose(request: ComposeRequest) -> ComposeResponse:
     return ComposeResponse(images=urls, model=endpoint)
 
 
+def _ask_model(instruction: str, *, max_tokens: int, what: str) -> str:
+    key = os.environ.get("FAL_KEY")
+    if not key:
+        raise HTTPException(status_code=503, detail="FAL_KEY is not set on the server")
+
+    try:
+        response = httpx.post(
+            LLM_URL,
+            headers={"Authorization": f"Key {key}"},
+            json={
+                "model": LLM_MODEL,
+                "messages": [{"role": "user", "content": instruction}],
+                "response_format": {"type": "json_object"},
+                "max_tokens": max_tokens,
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        # A model that reasons can spend its whole budget thinking and hand back
+        # a null message, so this is not guaranteed to be a string.
+        return response.json()["choices"][0]["message"]["content"] or ""
+    except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
+        raise HTTPException(status_code=502, detail=f"{what} model failed: {error}")
+
+
 def _room_summary(room: RoomFacts) -> str:
     parts = []
     if room.kind:
@@ -726,10 +827,6 @@ def _parse_suggestions(content: str) -> list[str]:
 
 @app.post("/suggest", response_model=SuggestResponse)
 def suggest(request: SuggestRequest) -> SuggestResponse:
-    key = os.environ.get("FAL_KEY")
-    if not key:
-        raise HTTPException(status_code=503, detail="FAL_KEY is not set on the server")
-
     instruction = (
         f"Write {request.count} one-line interior redesign briefs for this room: "
         f"{_room_summary(request.room)}.\n"
@@ -743,26 +840,191 @@ def suggest(request: SuggestRequest) -> SuggestResponse:
         'Reply with JSON and nothing else: {"suggestions": ["...", "..."]}'
     )
 
-    try:
-        response = httpx.post(
-            LLM_URL,
-            headers={"Authorization": f"Key {key}"},
-            json={
-                "model": LLM_MODEL,
-                "messages": [{"role": "user", "content": instruction}],
-                "response_format": {"type": "json_object"},
-                "max_tokens": 500,
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
-        # A model that reasons can spend its whole budget thinking and hand back
-        # a null message, so this is not guaranteed to be a string.
-        content = response.json()["choices"][0]["message"]["content"] or ""
-    except (httpx.HTTPError, KeyError, IndexError, ValueError) as error:
-        raise HTTPException(status_code=502, detail=f"suggestion model failed: {error}")
+    content = _ask_model(instruction, max_tokens=500, what="suggestion")
 
     # A generic strip of ideas beats an error in the one place the user is stuck
     # for words, so unparseable output falls back instead of failing.
     suggestions = _parse_suggestions(content) or FALLBACK_SUGGESTIONS
     return SuggestResponse(suggestions=suggestions[: request.count])
+
+
+_SIZE_ATTR = {"widthMetres": "width_metres", "depthMetres": "depth_metres", "heightMetres": "height_metres"}
+_ROOM_SPAN = {"widthMetres": "width_metres", "depthMetres": "length_metres"}
+
+INTERPRET_RULES = """\
+Reply with JSON and nothing else, in exactly this shape:
+{"roomKind": string or null,
+ "objectEdits": [{"id": string, "category": string or null, "widthMetres": number or null, "depthMetres": number or null, "heightMetres": number or null}],
+ "vagueSizes": [{"id": string, "field": "widthMetres" or "depthMetres" or "heightMetres", "direction": "bigger" or "smaller", "ask": string}],
+ "unchanged": [string]}
+
+roomKind: the kind of room they say it is, in English and lower case, in whatever words fit - "guest room", "playroom", "study". null when the sentence does not name a kind. Saying what the room is not does not name it.
+
+objectEdits: one entry for each object the sentence actually corrects, with the object's id copied exactly from the scan above. Fill in only what the sentence settles and leave every other field null. Never guess, and never repeat a value the scan already holds - if the category is already right, leave it null. A category is English, lower case, one or two words.
+A size is settled only when the sentence gives a number you could measure with - "1.2 metres wide", "about a metre and a half", "80 centimetres". Convert it to metres.
+
+vagueSizes: a size the person says is wrong without saying what it should be - "wider", "much bigger", "too tall", "a bit narrower". Put it here and never in objectEdits, however obvious the right number seems. "ask" is a short, friendly question asking them for the real size, in the language they used.
+"The tall one", "the big white thing", "that one by the door" are how a person points at an object. They describe what they are already looking at and say nothing is wrong with it, so they are never a vagueSize.
+
+unchanged: one whole sentence for each thing you could not act on - an object you could not pick out, a request about neither the room's kind nor an object's category or size, anything you did not follow. Write it as yourself, saying what you could not do, with their words quoted inside it. In English: I could not tell which thing you meant by "the tall one". Never echo their sentence back on its own, and never repeat an insult or a rude word back at them. Write it in the language they used. Empty list when you acted on everything.
+
+Point at an object only when the sentence can mean exactly one of the objects listed above. When two of them could fit, or none does, put nothing in objectEdits or vagueSizes for it and say so in unchanged instead. Never do both for the same thing: anything you acted on is not unchanged. Only ever use ids from the list above."""
+
+
+def _interpret_instruction(sentence: str, room: ScannedRoom) -> str:
+    scan = json.dumps(room.model_dump(by_alias=True), ensure_ascii=False)
+    return (
+        "A person is looking at a 3D scan of their room and correcting it in their own words. "
+        "The scan guesses what each object is and how big it is, and it is often wrong.\n\n"
+        f"What the scan believes right now:\n{scan}\n\n"
+        f"What the person said, word for word, between the markers:\n<<<{sentence}>>>\n\n"
+        f"{INTERPRET_RULES}"
+    )
+
+
+def _metres(value: object) -> float | None:
+    """A length we would be willing to act on, or nothing. NaN fails the comparison."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    value = float(value)
+    return round(value, 3) if 0 < value <= MAX_METRES else None
+
+
+def _phrase(value: object, limit: int) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return " ".join(value.split())[:limit] or None
+
+
+def _items(parsed: dict, key: str) -> list:
+    value = parsed.get(key)
+    return value if isinstance(value, list) else []
+
+
+def _format_metres(value: float) -> str:
+    return f"{value:.2f}".rstrip("0").rstrip(".") + " m"
+
+
+def _size_options(room: ScannedRoom, item: ScannedObject, field: str, direction: str) -> list[SizeOption]:
+    """Sizes to offer for a vague answer, measured off the room and the box it has now.
+
+    The object's box is what the image model is conditioned on, so every number
+    here has to come from geometry the scan actually measured.
+    """
+    current = _metres(getattr(item, _SIZE_ATTR[field]))
+    span = _metres(getattr(room, _ROOM_SPAN[field])) if field in _ROOM_SPAN else None
+    cap = span or (CEILING_CAP if field == "heightMetres" else MAX_METRES)
+
+    if direction == "smaller":
+        rungs = [
+            ("Half that", current and current * 0.5),
+            ("A quarter smaller", current and current * 0.75),
+            ("A third of the room", span and span / 3),
+            ("A bit smaller", current and current * 0.9),
+        ]
+    else:
+        rungs = [
+            ("Twice that", current and current * 2),
+            ("Half the room", span and span / 2),
+            ("Half again", current and current * 1.5),
+            ("A bit bigger", current and current * 1.15),
+            # A tall thing has nowhere to grow but the ceiling we never measured.
+            ("Floor to ceiling", CEILING_CAP if field == "heightMetres" else None),
+            ("Three times that", current and current * 3),
+            ("Most of the room", span and span * 0.8),
+        ]
+
+    offered, seen = [], set()
+    for label, value in rungs:
+        if value is None:
+            continue
+        value = round(value * 20) / 20      # the app draws boxes, not blueprints
+        if not 0.05 <= value <= cap or value in seen:
+            continue
+        # An option that doesn't move the way they asked isn't an answer to them.
+        if current is not None and (value >= current if direction == "smaller" else value <= current):
+            continue
+        seen.add(value)
+        offered.append(SizeOption(label=f"{label} — {_format_metres(value)}", value=value))
+        if len(offered) == OPTIONS_OFFERED:
+            break
+    # A lone option isn't a choice, it's the guess this endpoint exists to avoid.
+    return sorted(offered, key=lambda option: option.value) if len(offered) == OPTIONS_OFFERED else []
+
+
+def _shape_interpretation(parsed: dict, room: ScannedRoom) -> InterpretResponse:
+    """Keep only what the model settled about objects that exist. Everything else is noise."""
+    by_id = {item.id: item for item in room.objects}
+    unmatched = False
+    edits: list[ObjectEdit] = []
+    questions: list[SizeQuestion] = []
+    extra: list[str] = []
+
+    for raw in _items(parsed, "objectEdits"):
+        if not isinstance(raw, dict):
+            continue
+        identifier = raw.get("id")
+        if not isinstance(identifier, str) or identifier not in by_id:
+            unmatched = True
+            continue
+        if any(edit.id == identifier for edit in edits):
+            continue
+        sizes = {field: _metres(raw.get(field)) for field in SIZE_FIELDS}
+        category = _phrase(raw.get("category"), 80)
+        # An edit that settles nothing would only make the app redraw for nothing.
+        if not category and not any(sizes.values()):
+            continue
+        edits.append(ObjectEdit(id=identifier, category=category, **sizes))
+
+    for raw in _items(parsed, "vagueSizes"):
+        if not isinstance(raw, dict):
+            continue
+        identifier, field = raw.get("id"), raw.get("field")
+        if not isinstance(identifier, str) or identifier not in by_id or field not in SIZE_FIELDS:
+            unmatched = True
+            continue
+        if any(question.id == identifier and question.field == field for question in questions):
+            continue
+        # A number the sentence actually gave beats a question about the same field.
+        if any(edit.id == identifier and getattr(edit, _SIZE_ATTR[field]) is not None for edit in edits):
+            continue
+        direction = "smaller" if raw.get("direction") == "smaller" else "bigger"
+        options = _size_options(room, by_id[identifier], field, direction)
+        if not options:
+            extra.append(NO_NEW_SIZE)
+            continue
+        questions.append(SizeQuestion(
+            id=identifier, field=field, ask=_phrase(raw.get("ask"), 160) or DEFAULT_ASK[field], options=options,
+        ))
+
+    unchanged: list[str] = []
+    for line in [*(_phrase(line, 200) for line in _items(parsed, "unchanged")), *extra]:
+        if line and line not in unchanged:
+            unchanged.append(line)
+    if unmatched and not unchanged:
+        unchanged.append(NO_SUCH_THING)
+
+    return InterpretResponse(
+        room_kind=_phrase(parsed.get("roomKind"), 80),
+        object_edits=edits,
+        questions=questions,
+        unchanged=unchanged[:MAX_UNCHANGED],
+    )
+
+
+@app.post("/interpret", response_model=InterpretResponse)
+def interpret(request: InterpretRequest) -> InterpretResponse:
+    sentence = " ".join(request.sentence.split())
+    if not sentence:
+        return InterpretResponse()
+
+    content = _ask_model(_interpret_instruction(sentence, request.room), max_tokens=900, what="interpretation")
+
+    try:
+        parsed = json.loads(content.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip())
+        if not isinstance(parsed, dict):
+            raise ValueError("the model replied with something that isn't an object")
+        return _shape_interpretation(parsed, request.room)
+    except Exception:                                   # noqa: BLE001
+        # The app can show a shrug. It can't show a 500, and no reply is worth one.
+        return InterpretResponse(unchanged=[NOT_UNDERSTOOD])
