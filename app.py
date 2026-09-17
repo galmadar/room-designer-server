@@ -1054,3 +1054,29 @@ def interpret(request: InterpretRequest) -> InterpretResponse:
     except Exception:                                   # noqa: BLE001
         # The app can show a shrug. It can't show a 500, and no reply is worth one.
         return InterpretResponse(unchanged=[NOT_UNDERSTOOD])
+
+
+# --- The two pages the App Store listing points at -------------------------
+#
+# Apple requires a reachable support URL and privacy policy URL. Both pages live
+# in their own HTML files and both routes sit at the end of this module, so store
+# copy and API code never land in the same diff. The import is down here for the
+# same reason.
+
+from fastapi.responses import HTMLResponse       # noqa: E402
+
+_PAGE_DIRECTORY = pathlib.Path(__file__).resolve().parent
+
+
+def _page(name: str) -> HTMLResponse:
+    return HTMLResponse((_PAGE_DIRECTORY / name).read_text(encoding="utf-8"))
+
+
+@app.get("/support", response_class=HTMLResponse, include_in_schema=False)
+def support_page() -> HTMLResponse:
+    return _page("support.html")
+
+
+@app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
+def privacy_page() -> HTMLResponse:
+    return _page("privacy.html")

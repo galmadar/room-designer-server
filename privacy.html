@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roomsmith Privacy Policy</title>
+<style>
+  :root {
+    --paper: #faf8f5;
+    --ink: #1c1917;
+    --secondary: #79706a;
+    --accent: #b8763c;
+    --rule: #e6ded3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #16130f;
+      --ink: #f5f1ea;
+      --secondary: #a79d92;
+      --accent: #d9924f;
+      --rule: #322a22;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    padding: 40px 20px 72px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 34rem; margin: 0 auto; }
+  h1 {
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 6px;
+  }
+  .standfirst { color: var(--secondary); margin: 0 0 34px; }
+  h2 {
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 36px 0 10px;
+  }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 1.15em; }
+  li { margin-bottom: 8px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .lead-in {
+    border-left: 2px solid var(--accent);
+    padding-left: 16px;
+    margin: 0 0 14px;
+  }
+  .lead-in p:last-child { margin-bottom: 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.92em;
+    word-break: break-word;
+  }
+  footer {
+    margin-top: 44px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    color: var(--secondary);
+    font-size: 15px;
+  }
+  footer p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Roomsmith Privacy Policy</h1>
+  <p class="standfirst">Last updated 17 September 2026</p>
+
+  <div class="lead-in">
+    <p>Roomsmith keeps your rooms on your iPhone. The only things that leave it are the
+    pieces needed to make a picture, and they leave only at the moment you ask for one.
+    There is no account, no analytics and no advertising in this app.</p>
+  </div>
+
+  <h2>What stays on your phone</h2>
+  <p>Room scans, the photographs taken while scanning, floor plans, your furniture library
+  and every generated picture are stored in the app's own database on the device. They are
+  not copied to a server, and there is no sign-in that could gather them up.</p>
+  <p>The only setting the app remembers outside that database is the address of the picture
+  service, which is blank unless you deliberately point the app at your own.</p>
+
+  <h2>What leaves your phone, and when</h2>
+  <p>Nothing is sent while you scan, arrange furniture or look around a room. Making a
+  picture is what sends data, and it sends this:</p>
+  <ul>
+    <li><strong>The brief you wrote</strong> — the sentence describing how the room should look.</li>
+    <li><strong>A grey render of the scan</strong> — a picture of the room's measured shape,
+    which sets the viewpoint and the layout.</li>
+    <li><strong>The product pictures</strong> for the furniture placed in that design.</li>
+    <li><strong>A photograph of your room</strong>, but only when the design you asked for is
+    built on one of the photographs taken during the scan. A design made from the scan alone
+    sends no photograph.</li>
+  </ul>
+  <p>Two other things reach the service when you use the features that need them. Asking for
+  design ideas sends the facts of the room — what kind of room it is, its measurements, how
+  many windows and doors it has, and a list of the furniture the scan found — to a language
+  model. Adding furniture from a shop link sends that link, and the service then visits that
+  page itself and copies the product pictures from it. The same language model is also used
+  to read a sentence you type to correct a scan, where the app offers that.</p>
+  <p>What is not sent, in any of this: your name, your email address, your location, your
+  contacts, your photo library as a whole, or any identifier for you or your device.</p>
+
+  <h2>Who else sees it</h2>
+  <p>The picture service is a thin relay run by the developer. It holds the API key so the
+  app does not have to, and it stores nothing of its own — no database, no copies, no
+  accounts. It runs on Vercel, which handles the connection as any web host would.</p>
+  <p>From there, everything above goes to <a href="https://fal.ai">fal.ai</a>, which is where
+  the image and language models actually run. Making a picture uses Google's Nano Banana 2 or
+  OpenAI's GPT-Image 2 through fal; the room facts and typed sentences go to a Google Gemini
+  model through fal. These are the only third parties that receive anything. They receive it
+  only to produce what you asked for, and they are required to give it the same protection
+  this policy describes.</p>
+  <p>Nothing is ever sold, and nothing is shared with anyone else.</p>
+
+  <!-- BEGIN fal-upload-access-and-retention -->
+  <!-- Today's behaviour, as shipped: every image handed to fal asks for a one-hour life
+       (UPLOAD_LIFETIME_SECONDS in app.py), and the files are public for that hour because
+       fal's image models cannot read a file whose ACL is restricted. Revise this whole
+       block if fal ever supports authenticated inference reads; nothing outside these two
+       comments depends on it. -->
+  <h2>How those pictures are held at fal</h2>
+  <p>This is the part of Roomsmith that deserves the plainest language, so here it is
+  plainly. When a picture is made, the images described above are uploaded to fal's content
+  network, and fal hands back a web address for each one. Those addresses are public. fal's
+  own documentation puts it this way: <em>"Media URLs returned by fal
+  (<code>https://v3b.fal.media/...</code>) are publicly accessible — anyone with the URL can
+  access the file until it expires."</em> The addresses are long and random, and they are
+  never published anywhere, so in practice they are known only to the app, to the service and
+  to fal. But there is no password and no permission check on them. A stranger holding the
+  link would be handed the file.</p>
+  <p>Making them private was tried, and it cannot be done. fal can mark a file so that
+  strangers are refused, and that part works. What breaks is generation: measured on
+  17 September 2026 against the very model this app uses, fal's image models cannot read a
+  file that has been restricted, and the request fails outright. A restricted file is
+  unreadable even to the account that owns it. So the choice is a picture that can be made or
+  an upload that is private, and it is not currently possible to have both. This page will say
+  otherwise the day that changes.</p>
+  <p>What can be controlled is how long the files last, and that is set as short as the work
+  allows. Every image the service hands to fal — the room photograph, the scan render, the
+  product pictures, and the finished picture the model returns — is uploaded with a request
+  that it be deleted after <strong>one hour</strong>. Left alone, fal would keep them for
+  sixty days. An hour is far more than the app needs, since it uploads, composes and downloads
+  in a single run and never refers to those addresses again.</p>
+  <p>So the honest summary is this: a photograph of your room reaches a third party, is
+  readable by anyone holding the link, and is deleted an hour later.</p>
+  <!-- END fal-upload-access-and-retention -->
+
+  <h2>What the app asks permission for</h2>
+  <p>The camera, because scanning a room uses the camera and the depth sensor together. The
+  local network, only if you point the app at a service running on your own machine. When you
+  add furniture from your photo library, iOS shows you its own picker and hands the app only
+  the pictures you chose — the app never gets the library itself.</p>
+
+  <h2>No tracking, no analytics, no advertising</h2>
+  <p>There is no analytics, no crash reporting, no advertising identifier and no tracking
+  software of any kind in Roomsmith. The app carries no third-party code at all. Nothing
+  measures how you use it, and nothing about you is profiled or shared for advertising.</p>
+
+  <h2>Keeping and deleting things</h2>
+  <p>Everything on the phone is yours to remove. Deleting a picture removes it, deleting a
+  room removes that room and its scans, photographs and pictures, and deleting the app removes
+  all of it at once. None of that needs a request to anyone, because there is no copy
+  elsewhere to ask about.</p>
+  <p>The relay service holds nothing, so there is nothing there to delete. The only copies
+  outside your phone are the short-lived ones at fal described above, and they go on the
+  schedule set out there without anyone having to ask. If you have a question about a
+  particular picture, write to the address below.</p>
+  <p>There is no consent to withdraw in the usual sense: nothing is collected in the
+  background, so stopping the app from sending anything is a matter of not asking it for a
+  picture, and uninstalling ends it entirely.</p>
+
+  <h2>Children</h2>
+  <p>Roomsmith is not directed at children and collects nothing that would identify anyone,
+  of any age.</p>
+
+  <h2>Changes</h2>
+  <p>If what the app does with your data changes, this page changes with it, and the date at
+  the top moves.</p>
+
+  <h2>Contact</h2>
+  <p>Roomsmith is made by one person, Gal Madar. Questions about anything on this page, and
+  requests about your data, go to <a href="mailto:TODO-EMAIL">TODO-EMAIL</a>.</p>
+
+  <footer>
+    <p>Roomsmith — privacy policy</p>
+    <p><a href="/support">Support</a> · <a href="mailto:TODO-EMAIL">TODO-EMAIL</a></p>
+  </footer>
+
+</main>
+</body>
+</html>
