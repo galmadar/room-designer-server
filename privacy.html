@@ -79,20 +79,26 @@
 
   <div class="lead-in">
     <p>Roomsmith keeps your rooms on your iPhone. The only things that leave it are the
-    pieces needed to make a picture, and they leave only at the moment you ask for one.
-    There is no account, no analytics and no advertising in this app.</p>
+    pieces needed to make a picture or to understand a sentence you wrote, and they leave
+    only at the moment you ask. There is no account, no analytics and no advertising in this
+    app.</p>
   </div>
 
   <h2>What stays on your phone</h2>
   <p>Room scans, the photographs taken while scanning, floor plans, your furniture library
   and every generated picture are stored in the app's own database on the device. They are
   not copied to a server, and there is no sign-in that could gather them up.</p>
-  <p>The only setting the app remembers outside that database is the address of the picture
-  service, which is blank unless you deliberately point the app at your own.</p>
+  <p>Alongside that database the app remembers a few small things, all of them on the phone:
+  which of the first-time tips you have already seen, whether it has asked you about
+  notifications, a short note of any picture that was still being made when the app closed —
+  the room's name, the brief and the time it started, so it can tell you that one was lost —
+  and the address of the picture service, which is blank unless you deliberately point the
+  app at your own.</p>
 
   <h2>What leaves your phone, and when</h2>
-  <p>Nothing is sent while you scan, arrange furniture or look around a room. Making a
-  picture is what sends data, and it sends this:</p>
+  <p>Nothing is sent while you scan, arrange furniture or look around a room. Two things send
+  data, and both happen only when you ask for them.</p>
+  <p><strong>Making a picture</strong> sends:</p>
   <ul>
     <li><strong>The brief you wrote</strong> — the sentence describing how the room should look.</li>
     <li><strong>A grey render of the scan</strong> — a picture of the room's measured shape,
@@ -102,14 +108,23 @@
     built on one of the photographs taken during the scan. A design made from the scan alone
     sends no photograph.</li>
   </ul>
-  <p>Two other things reach the service when you use the features that need them. Asking for
-  design ideas sends the facts of the room — what kind of room it is, its measurements, how
-  many windows and doors it has, and a list of the furniture the scan found — to a language
-  model. Adding furniture from a shop link sends that link, and the service then visits that
-  page itself and copies the product pictures from it. The same language model is also used
-  to read a sentence you type to correct a scan, where the app offers that.</p>
-  <p>What is not sent, in any of this: your name, your email address, your location, your
-  contacts, your photo library as a whole, or any identifier for you or your device.</p>
+  <p><strong>Describing the room in words</strong> sends the sentence and the room's facts.
+  When you correct what the scan got wrong — "it's a guest room, and that fridge is a
+  wardrobe" — that sentence goes to the service and on to a language model, which works out
+  which object you meant and what you said about it. Asking for design ideas sends the same
+  room facts without a sentence. If you dictate instead of typing, that is the iOS keyboard's
+  own dictation: Apple handles the audio, and the app receives only the finished text.</p>
+  <p>The room's facts are exactly this: what kind of room it is, its width, length and ceiling
+  height, how many windows and doors it has, and for each piece of furniture the scan found,
+  the ordinary word for what it is and how wide, deep and tall it is. Each object also carries
+  a random identifier made on the phone, so the answer can point at the right one.</p>
+  <p>Nothing in that is capable of identifying you or your home. There is no name for the
+  room, no address, no location or map coordinates, no photograph, no contact details, and no
+  identifier for you or your device — measurements and the names of furniture, and nothing
+  else.</p>
+  <p>One more thing reaches the service when you use it: adding furniture from a shop link
+  sends that link, and the service then visits the page itself and copies the product pictures
+  from it.</p>
 
   <h2>Who else sees it</h2>
   <p>The picture service is a thin relay run by the developer. It holds the API key so the
@@ -117,10 +132,10 @@
   accounts. It runs on Vercel, which handles the connection as any web host would.</p>
   <p>From there, everything above goes to <a href="https://fal.ai">fal.ai</a>, which is where
   the image and language models actually run. Making a picture uses Google's Nano Banana 2 or
-  OpenAI's GPT-Image 2 through fal; the room facts and typed sentences go to a Google Gemini
-  model through fal. These are the only third parties that receive anything. They receive it
-  only to produce what you asked for, and they are required to give it the same protection
-  this policy describes.</p>
+  OpenAI's GPT-Image 2 through fal; the room facts and the sentences you write go to a Google
+  Gemini model through fal. These are the only third parties that receive anything. They
+  receive it only to produce what you asked for, and they are required to give it the same
+  protection this policy describes.</p>
   <p>Nothing is ever sold, and nothing is shared with anyone else.</p>
 
   <!-- BEGIN fal-upload-access-and-retention -->
@@ -156,11 +171,24 @@
   readable by anyone holding the link, and is deleted an hour later.</p>
   <!-- END fal-upload-access-and-retention -->
 
+  <h2>Being told when a picture is ready</h2>
+  <p>A picture can take a couple of minutes, so if you leave the app while one is being made,
+  Roomsmith can post a notification when it arrives or when it fails. The app asks once
+  whether you want that, and iOS asks its own question after; saying no changes nothing else
+  about how the app works.</p>
+  <p>These notifications are made and delivered entirely on your phone. There is no push
+  server, nothing is registered with a remote service, and no device token is created or sent
+  anywhere. The notification's text and the small picture attached to it never leave the
+  device.</p>
+
   <h2>What the app asks permission for</h2>
-  <p>The camera, because scanning a room uses the camera and the depth sensor together. The
-  local network, only if you point the app at a service running on your own machine. When you
-  add furniture from your photo library, iOS shows you its own picker and hands the app only
-  the pictures you chose — the app never gets the library itself.</p>
+  <p>The camera, because scanning a room uses the camera and the depth sensor together.
+  Notifications, if you accept the question above. The local network, only if you point the
+  app at a service running on your own machine. When you add furniture from your photo
+  library, iOS shows you its own picker and hands the app only the pictures you chose — the
+  app never gets the library itself.</p>
+  <p>When you share a picture out of the app, that uses the iOS share sheet, and where it goes
+  is entirely your choice.</p>
 
   <h2>No tracking, no analytics, no advertising</h2>
   <p>There is no analytics, no crash reporting, no advertising identifier and no tracking
@@ -170,15 +198,15 @@
   <h2>Keeping and deleting things</h2>
   <p>Everything on the phone is yours to remove. Deleting a picture removes it, deleting a
   room removes that room and its scans, photographs and pictures, and deleting the app removes
-  all of it at once. None of that needs a request to anyone, because there is no copy
-  elsewhere to ask about.</p>
+  all of it — the database and the small settings alike — at once. None of that needs a
+  request to anyone, because there is no copy elsewhere to ask about.</p>
   <p>The relay service holds nothing, so there is nothing there to delete. The only copies
   outside your phone are the short-lived ones at fal described above, and they go on the
   schedule set out there without anyone having to ask. If you have a question about a
   particular picture, write to the address below.</p>
   <p>There is no consent to withdraw in the usual sense: nothing is collected in the
   background, so stopping the app from sending anything is a matter of not asking it for a
-  picture, and uninstalling ends it entirely.</p>
+  picture or an interpretation, and uninstalling ends it entirely.</p>
 
   <h2>Children</h2>
   <p>Roomsmith is not directed at children and collects nothing that would identify anyone,
