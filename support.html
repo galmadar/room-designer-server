@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roomsmith Support</title>
+<style>
+  :root {
+    --paper: #faf8f5;
+    --ink: #1c1917;
+    --secondary: #79706a;
+    --accent: #b8763c;
+    --rule: #e6ded3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #16130f;
+      --ink: #f5f1ea;
+      --secondary: #a79d92;
+      --accent: #d9924f;
+      --rule: #322a22;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    padding: 40px 20px 72px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.62 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 34rem; margin: 0 auto; }
+  h1 {
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 6px;
+  }
+  .standfirst { color: var(--secondary); margin: 0 0 34px; }
+  h2 {
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 36px 0 10px;
+  }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 1.15em; }
+  li { margin-bottom: 8px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .contact {
+    margin: 12px 0 0;
+    padding: 18px 20px;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: transparent;
+  }
+  .contact p:last-child { margin-bottom: 0; }
+  .address {
+    font-size: 18px;
+    font-weight: 600;
+    word-break: break-word;
+  }
+  footer {
+    margin-top: 44px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    color: var(--secondary);
+    font-size: 15px;
+  }
+  footer p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Roomsmith Support</h1>
+  <p class="standfirst">Scan a room, place real furniture in it, and see a photograph of how it could look.</p>
+
+  <p>Roomsmith uses your iPhone's depth sensor to measure a room, keeps the scan on the
+  phone, and makes pictures of that room redesigned the way you describe. Everything you
+  scan and everything you make stays on the device.</p>
+
+  <h2>Getting in touch</h2>
+  <p>Roomsmith is made by one person, Gal Madar. Email is the way to reach me.</p>
+  <div class="contact">
+    <p class="address"><a href="mailto:gal@automind.co.il">gal@automind.co.il</a></p>
+    <p>I read everything that arrives. A reply can take a few days.</p>
+  </div>
+  <p style="margin-top:14px">If something went wrong, it helps to say which iPhone you have,
+  which version of iOS it runs, and what you were doing when it happened.</p>
+
+  <h2>Scanning needs a Pro iPhone</h2>
+  <p>Rooms are measured with a LiDAR sensor, which only the Pro iPhones have. On a phone
+  without one you can still see what the app does: it comes with a demo room, and everything
+  built on a scan works there — the floor plan, walking through the room at eye height, and
+  the design flow as far as the picture itself. What you cannot do is scan a room of your
+  own.</p>
+
+  <h2>When a scan comes out poor</h2>
+  <p>The scanner needs to see a surface properly before it believes in it. Most bad scans
+  come from moving too quickly.</p>
+  <ul>
+    <li>Walk the whole room slowly, and give each wall a moment rather than sweeping past it.</li>
+    <li>Stay about a metre or two back from what you are scanning. Very close and very far
+    both read badly.</li>
+    <li>Turn the lights on. The depth sensor copes with dim rooms better than the camera does,
+    but the photographs taken during the scan still need light.</li>
+    <li>Open doors and pull chairs out from under tables, so the shapes are separable.</li>
+    <li>Windows, mirrors and glass tables confuse any depth sensor. Expect them to come out
+    approximate.</li>
+  </ul>
+  <p>A scan that measured well but guessed wrong is worth correcting rather than repeating.
+  The scanner regularly reads a wardrobe as a refrigerator, and because the app works out what
+  kind of room it is from the furniture in it, one wrong label can throw off everything that
+  follows. You can put it right by tapping, or by saying what is wrong in a sentence — "it's a
+  guest room, and that fridge is a wardrobe". If the shape itself came out wrong, scanning the
+  room again is usually faster than working around it.</p>
+
+  <h2>Pictures are made over the network</h2>
+  <p>The redesigned photographs are not made on the phone. Roomsmith sends what it needs to
+  a small service, which passes it to the image model and sends the picture back, so making
+  a picture needs a working internet connection. A fast picture usually takes about fifteen
+  seconds, and the slower, better one about two minutes.</p>
+  <p>Because the slow one is genuinely slow, the app can tell you when a picture is ready if
+  you have left it. It asks once whether you would like that, and it works the same either
+  way.</p>
+  <p>Without a connection you can still open your rooms, browse your furniture library and
+  look at every picture you have already made. They are stored on the phone, not fetched.</p>
+  <p>If a picture fails, it is nearly always the connection or a busy model. Trying again a
+  minute later is the right first move.</p>
+
+  <h2>What happens to your rooms</h2>
+  <p>Scans, photographs, floor plans and generated pictures live on your iPhone. Deleting a
+  room deletes them, and deleting the app deletes all of it. The
+  <a href="/privacy">privacy policy</a> sets out exactly what leaves the device when a
+  picture is made, and what happens to it afterwards.</p>
+
+  <footer>
+    <p>Roomsmith — support</p>
+    <p>Gal Madar · <a href="mailto:gal@automind.co.il">gal@automind.co.il</a></p>
+  </footer>
+
+</main>
+</body>
+</html>
