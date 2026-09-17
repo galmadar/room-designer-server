@@ -6,9 +6,49 @@ scanned room into a handful of one-line redesign briefs, so the app can offer
 chips instead of an empty text box; `/interpret` turns a sentence the user says
 about their room into corrections the app can apply.
 
-It stores nothing. The phone keeps every scan, plan and image; backups are meant
-to go from the device straight to object storage, never through here — Vercel
-caps request bodies at 4.5 MB and a room scan is bigger than that.
+This server stores nothing itself, but it does not follow that nothing is
+stored. Every image it handles — the scan renders, the product pictures and the
+photographs of the user's own home — is uploaded to fal's CDN, because the image
+models take a URL rather than bytes. fal holds those files and serves them to
+anyone who has the link. What this server controls is how long that lasts: see
+[What fal keeps](#what-fal-keeps). The phone keeps every scan, plan and image;
+backups are meant to go from the device straight to object storage, never
+through here — Vercel caps request bodies at 4.5 MB and a room scan is bigger
+than that.
+
+## What fal keeps
+
+Every upload and every generated picture is given an hour to live, through
+`X-Fal-Object-Lifecycle-Preference` — `lifecycle=` on the uploads, the header
+itself on the two `subscribe` calls. fal's default is 60 days, so this is the
+change that matters most: a photograph of someone's living room stops being
+reachable an hour after it was taken rather than two months later. An hour is
+far more than the flow needs — the app uploads, composes and downloads in one
+run, and nothing on the phone ever refers to a fal URL again — but it leaves
+room for a slow `/compose`, which may take 280s.
+
+**The files are public for that hour, and that could not be avoided.** fal can
+mark a file `forbid` (403 to strangers) or `hide` (404), and that works: a file
+set either way answered an anonymous fetch with 403 and 404 respectively, where
+it had answered 200. But measured on 2026-09-17 against
+`fal-ai/nano-banana-2/edit`, the same model `/compose` uses, fal's own image
+models **cannot read a file whose ACL is not public**. The same bytes and prompt
+succeeded on a public URL and failed on both a `forbid` and a `hide` one, so the
+restriction, not the test, is what broke it. A restricted file is unreadable
+even to the account that owns it and holds the key — the CDN wants a signed
+token instead. So an ACL cannot be set on anything `/compose` has to read, and
+`app.py` deliberately sends none; `test_uploads.py` guards that, because adding
+one would break composing rather than fail loudly here.
+
+Setting the ACL is also a second step rather than part of the upload: passing
+`initial_acl` in the upload's lifecycle header made fal silently discard the
+whole preference, the expiry along with it. It only took effect through
+`PUT https://rest.fal.ai/storage/files/acl?url=…`. That is recorded in case the
+models ever learn to read restricted inputs; nothing here uses it today.
+
+What this leaves is worth stating plainly for a privacy policy: images of the
+user's home reach a third party, are readable by anyone holding the link, and
+are deleted an hour later.
 
 ## Running it locally
 

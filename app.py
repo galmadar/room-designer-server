@@ -3,6 +3,10 @@
 Deliberately stateless: it takes a conditioning image, calls fal, and returns
 URLs. Nothing is stored here — the phone keeps everything, and backups go
 straight from the device to object storage without passing through this.
+
+Nothing is stored *here*, but every image passes through fal's CDN, which holds
+it and serves it to anyone with the link. Uploads and results are given the
+shortest life that leaves the flow working; see UPLOAD_LIFETIME_SECONDS.
 """
 
 from __future__ import annotations
@@ -93,6 +97,25 @@ Marker = Literal[MARKERS]
 # What `fal_client.upload` returned on 2026-09-11. /compose forwards nothing
 # else, so it can't be used to make fal fetch arbitrary URLs on our key.
 FAL_STORAGE_HOSTS = {"v3b.fal.media"}
+
+# Everything here is a photograph of someone's home, and fal's CDN keeps uploads
+# for 60 days and serves them to anyone holding the link. An hour covers the
+# whole flow — the app uploads, composes and downloads in one go — with room to
+# spare, and nothing on the phone ever refers to a fal URL again afterwards.
+#
+# An hour is all we get. Measured on 2026-09-17: a file whose ACL is `forbid`
+# or `hide` is unreadable by fal's own image models, which fail the request
+# outright, so `initial_acl` can't be set on anything /compose has to read.
+# Deliberately absent below; see the README.
+UPLOAD_LIFETIME_SECONDS = 3600
+UPLOAD_LIFECYCLE = fal_client.StorageSettings(expires_in=UPLOAD_LIFETIME_SECONDS)
+
+# The same deadline for what the models hand back; the app downloads it at once.
+LIFECYCLE_HEADERS = {
+    "X-Fal-Object-Lifecycle-Preference": json.dumps(
+        {"expiration_duration_seconds": UPLOAD_LIFETIME_SECONDS}
+    )
+}
 
 # Leaves room under Vercel's 300s cap to answer with an error instead of dying.
 COMPOSE_TIMEOUT = 280
@@ -318,7 +341,7 @@ def generate(request: GenerateRequest) -> GenerateResponse:
         handle.write(image_bytes)
         handle.flush()
         try:
-            image_url = fal_client.upload_file(handle.name)
+            image_url = fal_client.upload_file(handle.name, lifecycle=UPLOAD_LIFECYCLE)
         except Exception as error:                      # noqa: BLE001
             raise HTTPException(status_code=502, detail=f"upload to fal failed: {error}")
 
@@ -333,7 +356,7 @@ def generate(request: GenerateRequest) -> GenerateResponse:
     }
 
     try:
-        result = fal_client.subscribe(endpoint, arguments=arguments)
+        result = fal_client.subscribe(endpoint, arguments=arguments, headers=LIFECYCLE_HEADERS)
     except Exception as error:                          # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"generation failed: {error}")
 
@@ -359,6 +382,7 @@ def _store(data: bytes, content_type: str) -> str:
     extension = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[content_type]
     return fal_client.upload(
         data, content_type, file_name=f"upload{extension}", repository="fal_v3", fallback_repository=[],
+        lifecycle=UPLOAD_LIFECYCLE,
     )
 
 
@@ -754,7 +778,9 @@ def compose(request: ComposeRequest) -> ComposeResponse:
     }
 
     try:
-        result = fal_client.subscribe(endpoint, arguments=arguments, client_timeout=COMPOSE_TIMEOUT)
+        result = fal_client.subscribe(
+            endpoint, arguments=arguments, client_timeout=COMPOSE_TIMEOUT, headers=LIFECYCLE_HEADERS,
+        )
     except Exception as error:                          # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"generation failed: {error}")
 
